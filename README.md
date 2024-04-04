@@ -1,0 +1,2 @@
+# TechIRCd
+Simple IRCd
