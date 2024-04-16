@@ -44,7 +44,7 @@ fn parse_command(line: &str) -> Command {
     }
 }
 
-fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<String>>>>, ops: Arc<Mutex<HashMap<String, String>>>) -> std::io::Result<()> {
+fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<String>>>>, ops: Arc<Mutex<HashMap<String, String>>>, clients: Arc<Mutex<HashMap<String, TcpStream>>>) -> std::io::Result<()> {
     let welcome_msg = "Welcome to the IRC server!\r\n";
     stream.write_all(welcome_msg.as_bytes())?;
 
@@ -61,6 +61,7 @@ fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<
             }
             Command::Nick(nick) => {
                 nickname = nick.clone();
+                clients.lock().unwrap().insert(nickname.clone(), stream.try_clone()?);
                 stream.write_all(format!("NICK {}\r\n", nick).as_bytes())?;
             }
             Command::User(username) => {
@@ -68,30 +69,35 @@ fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<
             }
             Command::Quit => {
                 stream.write_all("Goodbye!\r\n".as_bytes())?;
+                clients.lock().unwrap().remove(&nickname);
                 return Ok(());
             }
             Command::Join(channel) => {
                 let mut channels = channels.lock().unwrap();
                 channels.entry(channel.clone()).or_insert_with(Vec::new).push(nickname.clone());
-                stream.write_all(format!(":{} JOIN {}\r\n", nickname, channel).as_bytes())?;
-                if let Some(members) = channels.get(&channel) {
-                    for member in members {
-                        stream.write_all(format!(":{} 353 {} = {} :{}\r\n", nickname, nickname, channel, member).as_bytes())?;
-                    }
-                    stream.write_all(format!(":{} 366 {} {} :End of /NAMES list.\r\n", nickname, nickname, channel).as_bytes())?;
+                let join_msg = format!(":{} JOIN {}\r\n", nickname, channel);
+                for (_, client_stream) in clients.lock().unwrap().iter_mut() {
+                    client_stream.write_all(join_msg.as_bytes())?;
                 }
             }
             Command::Part(channel) => {
                 let mut channels = channels.lock().unwrap();
                 if let Some(members) = channels.get_mut(&channel) {
                     members.retain(|nick| nick != &nickname);
-                    stream.write_all(format!(":{} PART {}\r\n", nickname, channel).as_bytes())?;
+                    let part_msg = format!(":{} PART {}\r\n", nickname, channel);
+                    for (_, client_stream) in clients.lock().unwrap().iter_mut() {
+                        client_stream.write_all(part_msg.as_bytes())?;
+                    }
                 } else {
                     stream.write_all(format!("You're not in channel {}\r\n", channel).as_bytes())?;
                 }
             }
             Command::PrivMsg(target, message) => {
-                stream.write_all(format!("PRIVMSG {} :{}\r\n", target, message).as_bytes())?;
+                if let Some(target_stream) = clients.lock().unwrap().get(&target) {
+                    target_stream.write_all(format!(":{} PRIVMSG {} :{}\r\n", nickname, target, message).as_bytes())?;
+                } else {
+                    stream.write_all(format!("No such nick/channel: {}\r\n", target).as_bytes())?;
+                }
             }
             Command::Op(channel) => {
                 let mut ops = ops.lock().unwrap();
@@ -141,13 +147,15 @@ fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:6667")?;
     let channels: Arc<Mutex<HashMap<String, Vec<String>>>> = Arc::new(Mutex::new(HashMap::new()));
     let ops: Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::new()));
+    let clients: Arc<Mutex<HashMap<String, TcpStream>>> = Arc::new(Mutex::new(HashMap::new()));
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
                 let channels = Arc::clone(&channels);
                 let ops = Arc::clone(&ops);
+                let clients = Arc::clone(&clients);
                 thread::spawn(move || {
-                    if let Err(e) = handle_client(stream, channels, ops) {
+                    if let Err(e) = handle_client(stream, channels, ops, clients) {
                         error!("Error handling client: {}", e);
                     }
                 });
