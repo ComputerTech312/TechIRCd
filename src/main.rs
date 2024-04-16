@@ -11,7 +11,13 @@ enum Command {
     User(String),
     Quit,
     Join(String),
+    Part(String),
     PrivMsg(String, String),
+    Op(String),
+    Deop(String),
+    Ping,
+    Pong,
+    Names(String),
     Unknown(String),
 }
 
@@ -23,16 +29,22 @@ fn parse_command(line: &str) -> Command {
         Some(&"USER") => Command::User(parts.get(1).cloned().unwrap_or("unknown").to_string()),
         Some(&"QUIT") => Command::Quit,
         Some(&"JOIN") => Command::Join(parts.get(1).cloned().unwrap_or("unknown").to_string()),
+        Some(&"PART") => Command::Part(parts.get(1).cloned().unwrap_or("unknown").to_string()),
         Some(&"PRIVMSG") if parts.len() >= 3 => {
             let target = parts[1].to_string();
             let message = parts[2..].join(" ");
             Command::PrivMsg(target, message)
         }
+        Some(&"OP") => Command::Op(parts.get(1).cloned().unwrap_or("unknown").to_string()),
+        Some(&"DEOP") => Command::Deop(parts.get(1).cloned().unwrap_or("unknown").to_string()),
+        Some(&"PING") => Command::Ping,
+        Some(&"PONG") => Command::Pong,
+        Some(&"NAMES") => Command::Names(parts.get(1).cloned().unwrap_or("unknown").to_string()),
         _ => Command::Unknown(line.to_string()),
     }
 }
 
-fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<String>>>>) -> std::io::Result<()> {
+fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<String>>>>, ops: Arc<Mutex<HashMap<String, String>>>) -> std::io::Result<()> {
     let welcome_msg = "Welcome to the IRC server!\r\n";
     stream.write_all(welcome_msg.as_bytes())?;
 
@@ -62,9 +74,57 @@ fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<
                 let mut channels = channels.lock().unwrap();
                 channels.entry(channel.clone()).or_insert_with(Vec::new).push(nickname.clone());
                 stream.write_all(format!(":{} JOIN {}\r\n", nickname, channel).as_bytes())?;
+                if let Some(members) = channels.get(&channel) {
+                    for member in members {
+                        stream.write_all(format!(":{} 353 {} = {} :{}\r\n", nickname, nickname, channel, member).as_bytes())?;
+                    }
+                    stream.write_all(format!(":{} 366 {} {} :End of /NAMES list.\r\n", nickname, nickname, channel).as_bytes())?;
+                }
+            }
+            Command::Part(channel) => {
+                let mut channels = channels.lock().unwrap();
+                if let Some(members) = channels.get_mut(&channel) {
+                    members.retain(|nick| nick != &nickname);
+                    stream.write_all(format!(":{} PART {}\r\n", nickname, channel).as_bytes())?;
+                } else {
+                    stream.write_all(format!("You're not in channel {}\r\n", channel).as_bytes())?;
+                }
             }
             Command::PrivMsg(target, message) => {
                 stream.write_all(format!("PRIVMSG {} :{}\r\n", target, message).as_bytes())?;
+            }
+            Command::Op(channel) => {
+                let mut ops = ops.lock().unwrap();
+                ops.insert(channel.clone(), nickname.clone());
+                stream.write_all(format!(":{} OP {}\r\n", nickname, channel).as_bytes())?;
+            }
+            Command::Deop(channel) => {
+                let mut ops = ops.lock().unwrap();
+                if let Some(op) = ops.get(&channel) {
+                    if *op == nickname {
+                        ops.remove(&channel);
+                        stream.write_all(format!(":{} DEOP {}\r\n", nickname, channel).as_bytes())?;
+                    } else {
+                        stream.write_all(format!("You're not an operator of channel {}\r\n", channel).as_bytes())?;
+                    }
+                } else {
+                    stream.write_all(format!("No operator for channel {}\r\n", channel).as_bytes())?;
+                }
+            }
+            Command::Ping => {
+                stream.write_all("PONG\r\n".as_bytes())?;
+            }
+            Command::Pong => {
+                // Do nothing
+            }
+            Command::Names(channel) => {
+                let channels = channels.lock().unwrap();
+                if let Some(members) = channels.get(&channel) {
+                    let names = members.join(" ");
+                    stream.write_all(format!(":{} NAMES {} :{}\r\n", nickname, channel, names).as_bytes())?;
+                } else {
+                    stream.write_all(format!("No such channel: {}\r\n", channel).as_bytes())?;
+                }
             }
             Command::Unknown(cmd) => {
                 stream.write_all(format!("Unknown command: {}\r\n", cmd).as_bytes())?;
@@ -80,12 +140,14 @@ fn main() -> std::io::Result<()> {
     env_logger::init();
     let listener = TcpListener::bind("127.0.0.1:6667")?;
     let channels: Arc<Mutex<HashMap<String, Vec<String>>>> = Arc::new(Mutex::new(HashMap::new()));
+    let ops: Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::new()));
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
                 let channels = Arc::clone(&channels);
+                let ops = Arc::clone(&ops);
                 thread::spawn(move || {
-                    if let Err(e) = handle_client(stream, channels) {
+                    if let Err(e) = handle_client(stream, channels, ops) {
                         error!("Error handling client: {}", e);
                     }
                 });
