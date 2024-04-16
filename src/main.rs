@@ -93,7 +93,7 @@ fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<
                 }
             }
             Command::PrivMsg(target, message) => {
-                if let Some(target_stream) = clients.lock().unwrap().get(&target) {
+                if let Some(mut target_stream) = clients.lock().unwrap().get(&target) {
                     target_stream.write_all(format!(":{} PRIVMSG {} :{}\r\n", nickname, target, message).as_bytes())?;
                 } else {
                     stream.write_all(format!("No such nick/channel: {}\r\n", target).as_bytes())?;
