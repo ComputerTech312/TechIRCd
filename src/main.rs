@@ -15,8 +15,8 @@ enum Command {
     PrivMsg(String, String),
     Op(String),
     Deop(String),
-    Ping(String), // Added timestamp
-    Pong(String), // Added timestamp
+    Ping,
+    Pong,
     Names(String),
     Mode(String, String, String), // Added Mode command
     Who(String), // Added Who command
@@ -50,8 +50,8 @@ fn parse_command(line: &str) -> Command {
             }
             "OP" => Command::Op(parts.get(1).cloned().unwrap_or("unknown").to_string()),
             "DEOP" => Command::Deop(parts.get(1).cloned().unwrap_or("unknown").to_string()),
-            "PING" => Command::Ping(parts.get(1).cloned().unwrap_or("unknown").to_string()),
-            "PONG" => Command::Pong(parts.get(1).cloned().unwrap_or("unknown").to_string()),
+            "PING" => Command::Ping,
+            "PONG" => Command::Pong,
             "NAMES" => Command::Names(parts.get(1).cloned().unwrap_or("unknown").to_string()),
             _ => Command::Unknown(line.to_string()),
         },
@@ -74,14 +74,15 @@ fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<
             Command::CapLs302 => {
                 stream.write_all("CAP * LS :\r\n".as_bytes())?;
             }
-            Command::Ping(timestamp) => {
-                stream.write_all(format!("PONG {}\r\n", timestamp).as_bytes())?;
+            Command::Ping => {
+                stream.write_all("PONG\r\n".as_bytes())?;
             }
-            Command::Pong(_timestamp) => {
-                // Do nothing, but you can check the timestamp if you want
+            Command::Pong => {
+                // Do nothing
             }
             Command::Nick(nick) => {
                 nickname = nick.clone();
+                let nicknames: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
                 let hostname = "localhost"; // replace with your hostname
                 let version = "0.1.0"; // replace with your version
                 let date = "2022-01-01"; // replace with your server's creation date
@@ -91,6 +92,11 @@ fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<
                 let server_name = "localhost"; // replace with your server name
                 let port_number = "6667"; // replace with your port number
                 let motd_text = "Welcome to my IRC server!"; // replace with your message of the day
+                thread::spawn(move || {
+                    if let Err(e) = handle_client(stream, channels, ops, nicknames) {
+                        error!("Error handling client: {}", e);
+                    }
+                });
                 stream.write_all(format!("NICK {}\r\n", nick).as_bytes())?;
                 stream.write_all(format!(":{} 001 {} :Welcome to the network, {}\r\n", nickname, nickname, nickname).as_bytes())?;
                 stream.write_all(format!(":{} 002 {} :Your host is {}, running version {}\r\n", nickname, nickname, hostname, version).as_bytes())?;
@@ -152,12 +158,6 @@ fn handle_client(mut stream: TcpStream, channels: Arc<Mutex<HashMap<String, Vec<
                 } else {
                     stream.write_all(format!("No operator for channel {}\r\n", channel).as_bytes())?;
                 }
-            }
-            Command::Ping => {
-                stream.write_all("PONG\r\n".as_bytes())?;
-            }
-            Command::Pong => {
-                // Do nothing
             }
             Command::Names(channel) => {
                 let channels = channels.lock().unwrap();
