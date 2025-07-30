@@ -9,8 +9,22 @@ A modern, high-performance IRC server written in Go with comprehensive RFC compl
 - User registration and authentication
 - Channel management with comprehensive modes
 - Private messaging and notices
-- WHOIS, WHO, and NAMES commands
+- **Ultra-flexible WHOIS system** with granular privacy controls
+- WHO and NAMES commands
 - Ping/Pong keepalive mechanism
+
+### 🔍 **Revolutionary WHOIS System**
+- **Granular Privacy Controls**: Configure exactly what information is visible to everyone, operators, or only the user themselves
+- **User Modes Visibility**: Control who can see user modes (+i, +w, +s, etc.)
+- **SSL Status Display**: Show secure connection status
+- **Idle Time & Signon Time**: Configurable time information
+- **Real Host vs Masked Host**: Smart hostname display based on permissions
+- **Channel Privacy**: Hide secret/private channels with fine-grained control
+- **Operator Information**: Show operator class and privileges
+- **Services Integration**: Account name display for services
+- **Client Information**: Show IRC client details
+- **Custom Fields**: Add your own WHOIS fields
+- See [WHOIS Configuration Guide](docs/WHOIS_CONFIGURATION.md) for details
 
 ### 👑 **Advanced Channel Management**
 - **Operator Hierarchy**: Owners (~), Operators (@), Half-ops (%), Voice (+)
@@ -28,12 +42,21 @@ A modern, high-performance IRC server written in Go with comprehensive RFC compl
 
 ### 🔐 **IRC Operator Features**
 - Comprehensive operator authentication system
+- **Hierarchical Operator Classes** with rank-based permissions and inheritance
+- **Completely Customizable Rank Names** (Gaming, Corporate, Fantasy themes, etc.)
 - **Server Notice Masks (SNOmasks)**:
   - `+c` (connection notices)
   - `+k` (kill notices)
   - `+o` (oper notices)
   - `+x` (ban/quiet notices)
   - `+f` (flood notices)
+  - `+n` (nick change notices)
+  - `+s` (server notices)
+  - `+d` (debug notices)
+- **Unique Operator Commands**:
+  - **`/GODMODE`** - ⚡ Toggle ultimate channel override powers
+  - **`/STEALTH`** - 👤 Toggle invisibility to regular users
+- **Advanced Operator Commands**: KILL, GLINE, REHASH, WALLOPS, OPERWALL
   - `+n` (nick change notices)
   - `+s` (server notices)
   - `+d` (debug notices)
@@ -62,6 +85,32 @@ A modern, high-performance IRC server written in Go with comprehensive RFC compl
 - Panic recovery and error handling
 - Resource monitoring and health checks
 - Graceful shutdown capabilities
+
+### ⚡ **Unique Features (Not Found in Other IRCds)**
+
+#### 🌟 **God Mode (+G)**
+- **Ultimate Channel Override**: Join any channel regardless of bans, limits, keys, or invite-only mode
+- **Kick Immunity**: Cannot be kicked by any user
+- **Mode Override**: Set any channel mode without operator privileges
+- **Complete Bypass**: Ignore all channel restrictions and limitations
+
+#### 👻 **Stealth Mode (+S)**
+- **User Invisibility**: Completely hidden from regular users in WHO, NAMES, and WHOIS
+- **Operator Visibility**: Other operators can still see stealth users
+- **Covert Monitoring**: Watch channels without being detected
+- **Security Operations**: Investigate issues invisibly
+
+#### 🎨 **Customizable Rank Names**
+- **Gaming Themes**: Cadet → Sergeant → Lieutenant → Captain → General
+- **Corporate Themes**: Intern → Associate → Manager → Director → CEO
+- **Fantasy Themes**: Apprentice → Guardian → Knight → Lord → King
+- **Unlimited Creativity**: Create any rank system you can imagine
+
+#### 🔍 **Revolutionary WHOIS**
+- **Granular Privacy**: 15+ configurable information types
+- **Three-Tier Permissions**: Everyone/Operators/Self visibility controls
+- **Custom Fields**: Add your own WHOIS information
+- **Complete Flexibility**: Control every aspect of user information display
 
 ### 📊 **Monitoring & Logging**
 - Real-time health monitoring

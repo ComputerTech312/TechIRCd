@@ -58,6 +58,65 @@ type Config struct {
 	} `json:"privacy"`
 
 	WhoisFeatures struct {
+		// Basic information visibility
+		ShowUserModes struct {
+			ToEveryone bool `json:"to_everyone"`
+			ToOpers    bool `json:"to_opers"`
+			ToSelf     bool `json:"to_self"`
+		} `json:"show_user_modes"`
+		
+		ShowSSLStatus struct {
+			ToEveryone bool `json:"to_everyone"`
+			ToOpers    bool `json:"to_opers"`
+			ToSelf     bool `json:"to_self"`
+		} `json:"show_ssl_status"`
+		
+		ShowIdleTime struct {
+			ToEveryone bool `json:"to_everyone"`
+			ToOpers    bool `json:"to_opers"`
+			ToSelf     bool `json:"to_self"`
+		} `json:"show_idle_time"`
+		
+		ShowSignonTime struct {
+			ToEveryone bool `json:"to_everyone"`
+			ToOpers    bool `json:"to_opers"`
+			ToSelf     bool `json:"to_self"`
+		} `json:"show_signon_time"`
+		
+		ShowRealHost struct {
+			ToEveryone bool `json:"to_everyone"`
+			ToOpers    bool `json:"to_opers"`
+			ToSelf     bool `json:"to_self"`
+		} `json:"show_real_host"`
+		
+		ShowChannels struct {
+			ToEveryone    bool `json:"to_everyone"`
+			ToOpers       bool `json:"to_opers"`
+			ToSelf        bool `json:"to_self"`
+			HideSecret    bool `json:"hide_secret_channels"`
+			HidePrivate   bool `json:"hide_private_channels"`
+			ShowMembership bool `json:"show_membership_levels"`
+		} `json:"show_channels"`
+		
+		ShowOperClass struct {
+			ToEveryone bool `json:"to_everyone"`
+			ToOpers    bool `json:"to_opers"`
+			ToSelf     bool `json:"to_self"`
+		} `json:"show_oper_class"`
+		
+		ShowClientInfo struct {
+			ToEveryone bool `json:"to_everyone"`
+			ToOpers    bool `json:"to_opers"`
+			ToSelf     bool `json:"to_self"`
+		} `json:"show_client_info"`
+		
+		ShowAccountName struct {
+			ToEveryone bool `json:"to_everyone"`
+			ToOpers    bool `json:"to_opers"`
+			ToSelf     bool `json:"to_self"`
+		} `json:"show_account_name"`
+		
+		// Advanced/unique features
 		ShowActivityStats    bool `json:"show_activity_stats"`
 		ShowGitHubIntegration bool `json:"show_github_integration"`
 		ShowGeolocation      bool `json:"show_geolocation"`
@@ -65,6 +124,16 @@ type Config struct {
 		ShowDeviceInfo       bool `json:"show_device_info"`
 		ShowSocialGraph      bool `json:"show_social_graph"`
 		ShowSecurityScore    bool `json:"show_security_score"`
+		
+		// Custom fields
+		CustomFields []struct {
+			Name        string `json:"name"`
+			ToEveryone  bool   `json:"to_everyone"`
+			ToOpers     bool   `json:"to_opers"`
+			ToSelf      bool   `json:"to_self"`
+			Format      string `json:"format"`
+			Description string `json:"description"`
+		} `json:"custom_fields"`
 	} `json:"whois_features"`
 
 	Channels struct {
@@ -85,6 +154,11 @@ type Config struct {
 		Class    string   `json:"class"`
 		Flags    []string `json:"flags"`
 	} `json:"opers"`
+
+	OperConfig struct {
+		ConfigFile string `json:"config_file"`
+		Enable     bool   `json:"enable"`
+	} `json:"oper_config"`
 
 	MOTD []string `json:"motd"`
 

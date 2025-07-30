@@ -456,3 +456,39 @@ func (ch *Channel) Created() time.Time {
 	defer ch.mu.RUnlock()
 	return ch.created
 }
+
+// IsBanned checks if a client matches any ban mask in the channel
+func (ch *Channel) IsBanned(client *Client) bool {
+	ch.mu.RLock()
+	defer ch.mu.RUnlock()
+	
+	hostmask := fmt.Sprintf("%s!%s@%s", client.Nick(), client.User(), client.Host())
+	
+	for _, ban := range ch.banList {
+		if matchWildcard(ban, hostmask) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsInvited checks if a client is on the invite list for the channel
+func (ch *Channel) IsInvited(client *Client) bool {
+	ch.mu.RLock()
+	defer ch.mu.RUnlock()
+	
+	hostmask := fmt.Sprintf("%s!%s@%s", client.Nick(), client.User(), client.Host())
+	
+	for _, invite := range ch.inviteList {
+		if matchWildcard(invite, hostmask) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchWildcard checks if a pattern with wildcards (* and ?) matches a string
+func matchWildcard(pattern, str string) bool {
+	matched, _ := filepath.Match(strings.ToLower(pattern), strings.ToLower(str))
+	return matched
+}

@@ -44,6 +44,64 @@
     "oper_bypass_host_hide": true,
     "masked_host_suffix": "users.technet"
   },
+  "whois_features": {
+    "show_user_modes": {
+      "to_everyone": false,
+      "to_opers": true,
+      "to_self": true
+    },
+    "show_ssl_status": {
+      "to_everyone": true,
+      "to_opers": true,
+      "to_self": true
+    },
+    "show_idle_time": {
+      "to_everyone": false,
+      "to_opers": true,
+      "to_self": true
+    },
+    "show_signon_time": {
+      "to_everyone": false,
+      "to_opers": true,
+      "to_self": true
+    },
+    "show_real_host": {
+      "to_everyone": false,
+      "to_opers": true,
+      "to_self": true
+    },
+    "show_channels": {
+      "to_everyone": true,
+      "to_opers": true,
+      "to_self": true,
+      "hide_secret_channels": true,
+      "hide_private_channels": false,
+      "show_membership_levels": true
+    },
+    "show_oper_class": {
+      "to_everyone": false,
+      "to_opers": true,
+      "to_self": true
+    },
+    "show_client_info": {
+      "to_everyone": false,
+      "to_opers": true,
+      "to_self": false
+    },
+    "show_account_name": {
+      "to_everyone": true,
+      "to_opers": true,
+      "to_self": true
+    },
+    "show_activity_stats": false,
+    "show_github_integration": false,
+    "show_geolocation": false,
+    "show_performance_stats": false,
+    "show_device_info": false,
+    "show_social_graph": false,
+    "show_security_score": false,
+    "custom_fields": []
+  },
   "channels": {
     "default_modes": "+nt",
     "auto_join": [
@@ -72,6 +130,10 @@
       ]
     }
   ],
+  "oper_config": {
+    "config_file": "configs/opers.conf",
+    "enable": true
+  },
   "motd": [
     "Welcome to TechIRCd!",
     "A modern IRC server written in Go",

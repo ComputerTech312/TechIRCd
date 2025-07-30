@@ -268,20 +268,37 @@ func (c *Client) handleJoin(parts []string) {
 			continue
 		}
 
-		// Check channel modes and limits
+		// Check channel modes and limits (God Mode can bypass all restrictions)
 		key := ""
 		if i < len(keys) {
 			key = keys[i]
 		}
 
-		if channel.HasMode('k') && channel.Key() != key {
-			c.SendNumeric(ERR_BADCHANNELKEY, channelName+" :Cannot join channel (+k)")
-			continue
-		}
+		if !c.HasGodMode() {
+			if channel.HasMode('k') && channel.Key() != key {
+				c.SendNumeric(ERR_BADCHANNELKEY, channelName+" :Cannot join channel (+k)")
+				continue
+			}
 
-		if channel.HasMode('l') && channel.UserCount() >= channel.Limit() {
-			c.SendNumeric(ERR_CHANNELISFULL, channelName+" :Cannot join channel (+l)")
-			continue
+			if channel.HasMode('l') && channel.UserCount() >= channel.Limit() {
+				c.SendNumeric(ERR_CHANNELISFULL, channelName+" :Cannot join channel (+l)")
+				continue
+			}
+			
+			// Check for bans (God Mode bypasses bans)
+			if channel.IsBanned(c) {
+				c.SendNumeric(ERR_BANNEDFROMCHAN, channelName+" :Cannot join channel (+b)")
+				continue
+			}
+			
+			// Check invite-only mode (God Mode bypasses invite requirement)
+			if channel.HasMode('i') && !channel.IsInvited(c) {
+				c.SendNumeric(ERR_INVITEONLYCHAN, channelName+" :Cannot join channel (+i)")
+				continue
+			}
+		} else {
+			// God Mode user joining - notify operators
+			c.sendSnomask('o', fmt.Sprintf("GOD MODE: %s bypassed restrictions to join %s", c.Nick(), channelName))
 		}
 
 		// Join the channel
@@ -471,6 +488,11 @@ func (c *Client) handleWho(parts []string) {
 		}
 
 		for _, client := range channel.GetClients() {
+			// Skip stealth mode users unless requester is an operator
+			if !client.IsVisibleTo(c) {
+				continue
+			}
+			
 			flags := ""
 			if client.IsOper() {
 				flags += "*"
@@ -514,37 +536,59 @@ func (c *Client) handleWhois(parts []string) {
 		return
 	}
 
-	c.SendNumeric(RPL_WHOISUSER, fmt.Sprintf("%s %s %s * :%s",
-		target.Nick(), target.User(), target.HostForUser(c), target.Realname()))
+	// Basic user information (always shown)
+	hostname := target.HostForUser(c)
+	
+	// Show real host if configured and permitted
+	if c.canSeeWhoisInfo(target, "real_host") && hostname != target.Host() {
+		c.SendNumeric(RPL_WHOISUSER, fmt.Sprintf("%s %s %s * :%s",
+			target.Nick(), target.User(), target.Host(), target.Realname()))
+		c.SendMessage(fmt.Sprintf(":%s 378 %s %s :is connecting from %s", 
+			c.server.config.Server.Name, c.Nick(), target.Nick(), hostname))
+	} else {
+		c.SendNumeric(RPL_WHOISUSER, fmt.Sprintf("%s %s %s * :%s",
+			target.Nick(), target.User(), hostname, target.Realname()))
+	}
 
+	// Server information
 	c.SendNumeric(RPL_WHOISSERVER, fmt.Sprintf("%s %s :%s",
 		target.Nick(), c.server.config.Server.Name, c.server.config.Server.Description))
 
+	// Operator status
 	if target.IsOper() {
 		c.SendNumeric(RPL_WHOISOPERATOR, target.Nick()+" :is an IRC operator")
+		
+		// Show operator class if configured
+		if c.canSeeWhoisInfo(target, "oper_class") {
+			operClass := target.OperClass()
+			if operClass != "" {
+				// Load operator config to get class description and rank name
+				operConfig, err := LoadOperConfig(c.server.config.OperConfig.ConfigFile)
+				if err == nil && c.server.config.OperConfig.Enable {
+					class := operConfig.GetOperClass(operClass)
+					if class != nil {
+						rankName := operConfig.GetRankName(class.Rank)
+						c.SendMessage(fmt.Sprintf(":%s 313 %s %s :is an IRC operator (%s - %s) [%s]", 
+							c.server.config.Server.Name, c.Nick(), target.Nick(), class.Name, class.Description, rankName))
+					} else {
+						c.SendMessage(fmt.Sprintf(":%s 313 %s %s :is an IRC operator (class: %s)", 
+							c.server.config.Server.Name, c.Nick(), target.Nick(), operClass))
+					}
+				} else {
+					c.SendMessage(fmt.Sprintf(":%s 313 %s %s :is an IRC operator (class: %s)", 
+						c.server.config.Server.Name, c.Nick(), target.Nick(), operClass))
+				}
+			}
+		}
 	}
 
+	// Away status
 	if target.Away() != "" {
 		c.SendNumeric(RPL_AWAY, fmt.Sprintf("%s :%s", target.Nick(), target.Away()))
 	}
 
-	// Send channels
-	var channels []string
-	for _, channel := range target.GetChannels() {
-		channelName := channel.Name()
-		if channel.IsOperator(target) {
-			channelName = "@" + channelName
-		} else if channel.IsVoice(target) {
-			channelName = "+" + channelName
-		}
-		channels = append(channels, channelName)
-	}
-	if len(channels) > 0 {
-		c.SendNumeric(RPL_WHOISCHANNELS, fmt.Sprintf("%s :%s", target.Nick(), strings.Join(channels, " ")))
-	}
-
-	// Show user modes if the requester is an operator or the target user
-	if c.IsOper() || c.Nick() == target.Nick() {
+	// User modes
+	if c.canSeeWhoisInfo(target, "user_modes") {
 		modes := target.GetModes()
 		if modes != "" {
 			c.SendMessage(fmt.Sprintf(":%s 379 %s %s :is using modes %s",
@@ -552,9 +596,65 @@ func (c *Client) handleWhois(parts []string) {
 		}
 	}
 
-	// Show SSL status
-	if target.IsSSL() {
+	// SSL status
+	if c.canSeeWhoisInfo(target, "ssl_status") && target.IsSSL() {
 		c.SendMessage(fmt.Sprintf(":%s 671 %s %s :is using a secure connection",
+			c.server.config.Server.Name, c.Nick(), target.Nick()))
+	}
+
+	// Channels
+	if c.canSeeChannels(target) {
+		var channels []string
+		config := c.server.config.WhoisFeatures.ShowChannels
+		
+		for _, channel := range target.GetChannels() {
+			// Skip secret/private channels based on config
+			if config.HideSecret && channel.HasMode('s') && !channel.HasClient(c) {
+				continue
+			}
+			if config.HidePrivate && channel.HasMode('p') && !channel.HasClient(c) {
+				continue
+			}
+			
+			channelName := channel.Name()
+			if config.ShowMembership {
+				if channel.IsOperator(target) {
+					channelName = "@" + channelName
+				} else if channel.IsVoice(target) {
+					channelName = "+" + channelName
+				}
+			}
+			channels = append(channels, channelName)
+		}
+		
+		if len(channels) > 0 {
+			c.SendNumeric(RPL_WHOISCHANNELS, fmt.Sprintf("%s :%s", target.Nick(), strings.Join(channels, " ")))
+		}
+	}
+
+	// Idle time
+	if c.canSeeWhoisInfo(target, "idle_time") {
+		idleTime := int(time.Since(target.LastActivity()).Seconds())
+		c.SendNumeric(RPL_WHOISIDLE, fmt.Sprintf("%s %d %d :seconds idle, signon time",
+			target.Nick(), idleTime, target.ConnectTime().Unix()))
+	}
+
+	// Signon time (alternative if idle time is not shown)
+	if !c.canSeeWhoisInfo(target, "idle_time") && c.canSeeWhoisInfo(target, "signon_time") {
+		c.SendMessage(fmt.Sprintf(":%s 317 %s %s :signed on %s", 
+			c.server.config.Server.Name, c.Nick(), target.Nick(), 
+			target.ConnectTime().Format("Mon Jan 2 15:04:05 2006")))
+	}
+
+	// Account name (for services integration)
+	if c.canSeeWhoisInfo(target, "account_name") && target.Account() != "" {
+		c.SendMessage(fmt.Sprintf(":%s 330 %s %s %s :is logged in as", 
+			c.server.config.Server.Name, c.Nick(), target.Nick(), target.Account()))
+	}
+
+	// Client information
+	if c.canSeeWhoisInfo(target, "client_info") {
+		c.SendMessage(fmt.Sprintf(":%s 351 %s %s :is using client TechIRCd-Client", 
 			c.server.config.Server.Name, c.Nick(), target.Nick()))
 	}
 
@@ -590,6 +690,11 @@ func (c *Client) handleNames(parts []string) {
 func (c *Client) sendNames(channel *Channel) {
 	var names []string
 	for _, client := range channel.GetClients() {
+		// Skip stealth mode users unless requester is an operator
+		if !client.IsVisibleTo(c) {
+			continue
+		}
+		
 		name := client.Nick()
 		if channel.IsOwner(client) {
 			name = "~" + name
@@ -722,6 +827,48 @@ func (c *Client) handleMode(parts []string) {
 				} else {
 					appliedModes = append(appliedModes, "-B")
 				}
+			case 'G': // God Mode (requires oper and god_mode permission)
+				if !c.IsOper() {
+					c.SendNumeric(ERR_NOPRIVILEGES, ":Permission Denied- You're not an IRC operator")
+					continue
+				}
+				if !c.HasOperPermission("god_mode") {
+					c.SendNumeric(ERR_NOPRIVILEGES, ":Permission Denied - You need god_mode permission")
+					continue
+				}
+				c.SetMode('G', adding)
+				if adding {
+					appliedModes = append(appliedModes, "+G")
+					c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** GOD MODE enabled - You have ultimate power!", 
+						c.server.config.Server.Name, c.Nick()))
+					c.sendSnomask('o', fmt.Sprintf("%s has enabled GOD MODE - Ultimate channel override powers active", c.Nick()))
+				} else {
+					appliedModes = append(appliedModes, "-G")
+					c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** GOD MODE disabled", 
+						c.server.config.Server.Name, c.Nick()))
+					c.sendSnomask('o', fmt.Sprintf("%s has disabled GOD MODE", c.Nick()))
+				}
+			case 'S': // Stealth Mode (requires oper and stealth_mode permission)
+				if !c.IsOper() {
+					c.SendNumeric(ERR_NOPRIVILEGES, ":Permission Denied- You're not an IRC operator")
+					continue
+				}
+				if !c.HasOperPermission("stealth_mode") {
+					c.SendNumeric(ERR_NOPRIVILEGES, ":Permission Denied - You need stealth_mode permission")
+					continue
+				}
+				c.SetMode('S', adding)
+				if adding {
+					appliedModes = append(appliedModes, "+S")
+					c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** STEALTH MODE enabled - You are now invisible to users", 
+						c.server.config.Server.Name, c.Nick()))
+					c.sendSnomask('o', fmt.Sprintf("%s has enabled STEALTH MODE - Now invisible to regular users", c.Nick()))
+				} else {
+					appliedModes = append(appliedModes, "-S")
+					c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** STEALTH MODE disabled - You are now visible", 
+						c.server.config.Server.Name, c.Nick()))
+					c.sendSnomask('o', fmt.Sprintf("%s has disabled STEALTH MODE", c.Nick()))
+				}
 			default:
 				c.SendNumeric(ERR_UMODEUNKNOWNFLAG, ":Unknown MODE flag")
 			}
@@ -763,9 +910,15 @@ func (c *Client) handleMode(parts []string) {
 	argIndex := 0
 
 	// Check if user has operator privileges (required for most mode changes)
-	if !channel.IsOwner(c) && !channel.IsOperator(c) && !channel.IsHalfop(c) && !c.IsOper() {
+	// God Mode users can bypass operator requirement
+	if !c.HasGodMode() && !channel.IsOwner(c) && !channel.IsOperator(c) && !channel.IsHalfop(c) && !c.IsOper() {
 		c.SendNumeric(ERR_CHANOPRIVSNEEDED, target+" :You're not channel operator")
 		return
+	}
+	
+	// If using God Mode to set modes, notify operators
+	if c.HasGodMode() && !channel.IsOwner(c) && !channel.IsOperator(c) && !channel.IsHalfop(c) {
+		c.sendSnomask('o', fmt.Sprintf("GOD MODE: %s set modes on %s without operator privileges", c.Nick(), target))
 	}
 
 	adding := true
@@ -1241,6 +1394,13 @@ func (c *Client) handleKick(parts []string) {
 		return
 	}
 
+	// God Mode users cannot be kicked
+	if target.HasGodMode() {
+		c.SendNumeric(ERR_NOPRIVILEGES, fmt.Sprintf("%s :Cannot kick user (GOD MODE)", nick))
+		c.sendSnomask('o', fmt.Sprintf("GOD MODE: %s attempted to kick %s from %s but was blocked", c.Nick(), target.Nick(), channelName))
+		return
+	}
+
 	// TODO: Check if user has operator privileges
 	// For now, allow anyone to kick (will fix with proper channel modes)
 
@@ -1324,37 +1484,82 @@ func (c *Client) handleOper(parts []string) {
 		return
 	}
 
-	// Find matching oper configuration
-	for _, oper := range c.server.config.Opers {
-		if oper.Name == name && oper.Password == password {
-			// Check host mask (simplified - just check if it matches *@localhost for now)
-			if oper.Host == "*@localhost" || oper.Host == "*@*" {
-				c.SetOper(true)
-
-				// Set operator user mode
-				c.SetMode('o', true)
-				c.SetMode('s', true) // Enable server notices by default
-				c.SetMode('w', true) // Enable wallops by default
-
-				// Set default snomasks for new operators
-				c.SetSnomask('c', true) // Client connects/disconnects
-				c.SetSnomask('o', true) // Oper-up messages
-				c.SetSnomask('s', true) // Server messages
-
-				c.SendNumeric(RPL_YOUREOPER, ":You are now an IRC operator")
-				c.SendNumeric(RPL_SNOMASK, fmt.Sprintf("%s :Server notice mask", c.GetSnomasks()))
-
-				// Send mode change notification
-				c.SendMessage(fmt.Sprintf(":%s MODE %s :+osw", c.Nick(), c.Nick()))
-
-				// Send snomask to other operators
-				c.sendSnomask('o', fmt.Sprintf("%s (%s@%s) is now an IRC operator", c.Nick(), c.User(), c.Host()))
-				return
+	var matchedOper *Oper
+	var operConfig *OperConfig
+	
+	// Try to load advanced oper configuration first
+	if c.server.config.OperConfig.Enable {
+		var err error
+		operConfig, err = LoadOperConfig(c.server.config.OperConfig.ConfigFile)
+		if err == nil {
+			oper := operConfig.GetOper(name)
+			if oper != nil && oper.Password == password {
+				// TODO: Implement proper host matching
+				if oper.Host == "*@localhost" || oper.Host == "*@*" {
+					matchedOper = oper
+				}
 			}
 		}
 	}
+	
+	// Fallback to legacy configuration
+	if matchedOper == nil {
+		for _, oper := range c.server.config.Opers {
+			if oper.Name == name && oper.Password == password {
+				// Check host mask (simplified - just check if it matches *@localhost for now)
+				if oper.Host == "*@localhost" || oper.Host == "*@*" {
+					// Convert legacy oper to new format for consistency
+					matchedOper = &Oper{
+						Name:     oper.Name,
+						Password: oper.Password,
+						Host:     oper.Host,
+						Class:    oper.Class,
+						Flags:    oper.Flags,
+					}
+					break
+				}
+			}
+		}
+	}
+	
+	if matchedOper == nil {
+		c.SendNumeric(ERR_PASSWDMISMATCH, ":Password incorrect")
+		return
+	}
 
-	c.SendNumeric(ERR_PASSWDMISMATCH, ":Password incorrect")
+	// Set operator status
+	c.SetOper(true)
+	c.SetOperClass(matchedOper.Class)
+
+	// Set operator user mode
+	c.SetMode('o', true)
+	c.SetMode('s', true) // Enable server notices by default
+	c.SetMode('w', true) // Enable wallops by default
+
+	// Set default snomasks for new operators
+	c.SetSnomask('c', true) // Client connects/disconnects
+	c.SetSnomask('o', true) // Oper-up messages
+	c.SetSnomask('s', true) // Server messages
+
+	// Get operator class information for display
+	var className string
+	if operConfig != nil {
+		class := operConfig.GetOperClass(matchedOper.Class)
+		if class != nil {
+			className = fmt.Sprintf(" (%s)", class.Description)
+		}
+	}
+
+	c.SendNumeric(RPL_YOUREOPER, ":You are now an IRC operator"+className)
+	c.SendNumeric(RPL_SNOMASK, fmt.Sprintf("%s :Server notice mask", c.GetSnomasks()))
+
+	// Send mode change notification
+	c.SendMessage(fmt.Sprintf(":%s MODE %s :+osw", c.Nick(), c.Nick()))
+
+	// Send snomask to other operators
+	operSymbol := c.GetOperSymbol()
+	c.sendSnomask('o', fmt.Sprintf("%s%s (%s@%s) is now an IRC operator%s", 
+		operSymbol, c.Nick(), c.User(), c.Host(), className))
 }
 
 // handleSnomask handles SNOMASK command (server notice masks for operators)
@@ -1823,20 +2028,6 @@ func (c *Client) getUserStatus(target *Client) string {
 		status += " (Bot)"
 	}
 	return status
-}
-
-// sendSnomask sends a server notice to operators watching a specific snomask
-func (c *Client) sendSnomask(snomask rune, message string) {
-	if c.server == nil {
-		return
-	}
-
-	for _, client := range c.server.GetClients() {
-		if client.IsOper() && client.HasSnomask(snomask) {
-			client.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** %s",
-				c.server.config.Server.Name, client.Nick(), message))
-		}
-	}
 }
 
 // isValidNickname checks if a nickname is valid
