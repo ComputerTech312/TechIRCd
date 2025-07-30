@@ -39,6 +39,11 @@
     "enable_dcc": false,
     "case_mapping": "rfc1459"
   },
+  "privacy": {
+    "hide_hosts_from_users": true,
+    "oper_bypass_host_hide": true,
+    "masked_host_suffix": "users.technet"
+  },
   "channels": {
     "default_modes": "+nt",
     "auto_join": [

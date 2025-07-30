@@ -487,7 +487,7 @@ func (c *Client) handleWho(parts []string) {
 			}
 
 			c.SendNumeric(352, fmt.Sprintf("%s %s %s %s %s %s :0 %s",
-				target, client.User(), client.Host(), c.server.config.Server.Name,
+				target, client.User(), client.HostForUser(c), c.server.config.Server.Name,
 				client.Nick(), flags, client.Realname()))
 		}
 	}
@@ -515,7 +515,7 @@ func (c *Client) handleWhois(parts []string) {
 	}
 
 	c.SendNumeric(RPL_WHOISUSER, fmt.Sprintf("%s %s %s * :%s",
-		target.Nick(), target.User(), target.Host(), target.Realname()))
+		target.Nick(), target.User(), target.HostForUser(c), target.Realname()))
 
 	c.SendNumeric(RPL_WHOISSERVER, fmt.Sprintf("%s %s :%s",
 		target.Nick(), c.server.config.Server.Name, c.server.config.Server.Description))

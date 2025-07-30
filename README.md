@@ -83,8 +83,41 @@ A modern, high-performance IRC server written in Go with comprehensive RFC compl
 ## Building
 
 ```bash
+# Install dependencies
 go mod tidy
+
+# Build the server
+go run tools/build.go -build
+
+# Or use the traditional method
 go build -o techircd
+```
+
+## Build Options
+
+The `tools/build.go` script provides several build options:
+
+```bash
+# Build and run
+go run tools/build.go -run
+
+# Run tests
+go run tools/build.go -test
+
+# Format code
+go run tools/build.go -fmt
+
+# Cross-platform builds
+go run tools/build.go -build-all
+
+# Optimized release build
+go run tools/build.go -release
+
+# Clean build artifacts
+go run tools/build.go -clean
+
+# Show all options
+go run tools/build.go -help
 ```
 
 ## Usage

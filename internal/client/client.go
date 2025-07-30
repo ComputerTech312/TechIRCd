@@ -152,6 +152,37 @@ func (c *Client) Host() string {
 	return c.host
 }
 
+// HostForUser returns the appropriate hostname to show to a requesting user
+// based on privacy settings and the requester's privileges
+func (c *Client) HostForUser(requester *Client) string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	
+	// If host hiding is disabled, always show real host
+	if !c.server.config.Privacy.HideHostsFromUsers {
+		return c.host
+	}
+	
+	// If requester is an operator and bypass is enabled, show real host
+	if requester != nil && requester.IsOper() && c.server.config.Privacy.OperBypassHostHide {
+		return c.host
+	}
+	
+	// If requester is viewing themselves, show real host
+	if requester != nil && requester.Nick() == c.Nick() {
+		return c.host
+	}
+	
+	// Check if user has +x mode set (host masking)
+	if c.HasMode('x') {
+		// Return masked hostname
+		return c.nick + "." + c.server.config.Privacy.MaskedHostSuffix
+	}
+	
+	// Default behavior: show masked host when privacy is enabled
+	return c.nick + "." + c.server.config.Privacy.MaskedHostSuffix
+}
+
 func (c *Client) IsRegistered() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

@@ -51,6 +51,22 @@ type Config struct {
 		CaseMapping    string `json:"case_mapping"`
 	} `json:"features"`
 
+	Privacy struct {
+		HideHostsFromUsers bool `json:"hide_hosts_from_users"`
+		OperBypassHostHide bool `json:"oper_bypass_host_hide"`
+		MaskedHostSuffix   string `json:"masked_host_suffix"`
+	} `json:"privacy"`
+
+	WhoisFeatures struct {
+		ShowActivityStats    bool `json:"show_activity_stats"`
+		ShowGitHubIntegration bool `json:"show_github_integration"`
+		ShowGeolocation      bool `json:"show_geolocation"`
+		ShowPerformanceStats bool `json:"show_performance_stats"`
+		ShowDeviceInfo       bool `json:"show_device_info"`
+		ShowSocialGraph      bool `json:"show_social_graph"`
+		ShowSecurityScore    bool `json:"show_security_score"`
+	} `json:"whois_features"`
+
 	Channels struct {
 		DefaultModes  string   `json:"default_modes"`
 		AutoJoin      []string `json:"auto_join"`
