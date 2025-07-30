@@ -398,11 +398,11 @@ func (c *Client) Handle() {
 	}
 
 	scanner := bufio.NewScanner(c.conn)
-
+	
 	// Set maximum line length to prevent memory exhaustion
 	const maxLineLength = 4096
 	scanner.Buffer(make([]byte, maxLineLength), maxLineLength)
-
+	
 	// Set read deadline for scanner
 	c.conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
 
@@ -414,10 +414,10 @@ func (c *Client) Handle() {
 	// Set up ping timeout mechanism
 	pingInterval := 30 * time.Second // Send ping every 30 seconds
 	pingTimeout := c.server.config.PingTimeoutDuration()
-
+	
 	pingTicker := time.NewTicker(pingInterval)
 	defer pingTicker.Stop()
-
+	
 	// Initialize ping state
 	c.mu.Lock()
 	c.lastPong = time.Now()
@@ -437,14 +437,14 @@ func (c *Client) Handle() {
 				waitingForPong := c.waitingForPong
 				lastPong := c.lastPong
 				c.mu.RUnlock()
-
+				
 				if waitingForPong && time.Since(lastPong) > pingTimeout {
 					c.SendMessage("ERROR :Ping timeout")
 					return
 				}
 				// Send ping
 				c.SendMessage(fmt.Sprintf("PING :%s", c.server.config.Server.Name))
-
+				
 				c.mu.Lock()
 				c.waitingForPong = true
 				c.mu.Unlock()
@@ -452,7 +452,7 @@ func (c *Client) Handle() {
 		default:
 			// Reset read deadline for each message
 			c.conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
-
+			
 			if !scanner.Scan() {
 				// Check for scanner error
 				if err := scanner.Err(); err != nil {

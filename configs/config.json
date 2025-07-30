@@ -28,8 +28,8 @@
     "max_away_length": 307,
     "ping_timeout": 300,
     "registration_timeout": 60,
-    "flood_lines": 20,
-    "flood_seconds": 10
+    "flood_lines": 10,
+    "flood_seconds": 60
   },
   "features": {
     "enable_oper": true,
@@ -56,7 +56,7 @@
   "opers": [
     {
       "name": "admin",
-      "password": "changeme",
+      "password": "your_secure_password_here",
       "host": "*@localhost",
       "class": "admin",
       "flags": [

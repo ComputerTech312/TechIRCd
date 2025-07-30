@@ -121,10 +121,10 @@ func (c *Client) handleNick(parts []string) {
 		for _, channel := range c.GetChannels() {
 			channel.Broadcast(message, nil)
 		}
-
+		
 		// Send snomask notification for nick change
 		if c.server != nil && oldNick != newNick {
-			c.server.sendSnomask('n', fmt.Sprintf("Nick change: %s -> %s (%s@%s)",
+			c.server.sendSnomask('n', fmt.Sprintf("Nick change: %s -> %s (%s@%s)", 
 				oldNick, newNick, c.User(), c.Host()))
 		}
 	}
@@ -174,7 +174,7 @@ func (c *Client) sendWelcome() {
 		fmt.Printf("DEBUG: sendWelcome - config is nil\n")
 		return
 	}
-
+	
 	fmt.Printf("DEBUG: sendWelcome - about to send RPL_WELCOME\n")
 	c.SendNumeric(RPL_WELCOME, fmt.Sprintf("Welcome to %s, %s", c.server.config.Server.Network, c.Prefix()))
 	fmt.Printf("DEBUG: sendWelcome - sent RPL_WELCOME\n")
@@ -190,13 +190,13 @@ func (c *Client) sendWelcome() {
 		}
 		c.SendNumeric(RPL_ENDOFMOTD, "End of /MOTD command")
 	}
-
+	
 	// Send snomask notification for new client connection
 	if c.server != nil {
-		c.server.sendSnomask('c', fmt.Sprintf("Client connect: %s (%s@%s)",
+		c.server.sendSnomask('c', fmt.Sprintf("Client connect: %s (%s@%s)", 
 			c.Nick(), c.User(), c.Host()))
 	}
-
+	
 	fmt.Printf("DEBUG: sendWelcome completed\n")
 }
 
@@ -547,14 +547,14 @@ func (c *Client) handleWhois(parts []string) {
 	if c.IsOper() || c.Nick() == target.Nick() {
 		modes := target.GetModes()
 		if modes != "" {
-			c.SendMessage(fmt.Sprintf(":%s 379 %s %s :is using modes %s",
+			c.SendMessage(fmt.Sprintf(":%s 379 %s %s :is using modes %s", 
 				c.server.config.Server.Name, c.Nick(), target.Nick(), modes))
 		}
 	}
 
 	// Show SSL status
 	if target.IsSSL() {
-		c.SendMessage(fmt.Sprintf(":%s 671 %s %s :is using a secure connection",
+		c.SendMessage(fmt.Sprintf(":%s 671 %s %s :is using a secure connection", 
 			c.server.config.Server.Name, c.Nick(), target.Nick()))
 	}
 
@@ -784,18 +784,18 @@ func (c *Client) handleMode(parts []string) {
 			}
 			targetNick := args[argIndex]
 			argIndex++
-
+			
 			targetClient := c.server.GetClient(targetNick)
 			if targetClient == nil {
 				c.SendNumeric(ERR_NOSUCHNICK, targetNick+" :No such nick/channel")
 				continue
 			}
-
+			
 			if !targetClient.IsInChannel(target) {
 				c.SendNumeric(ERR_USERNOTINCHANNEL, fmt.Sprintf("%s %s :They aren't on that channel", targetNick, target))
 				continue
 			}
-
+			
 			channel.SetOperator(targetClient, adding)
 			if adding {
 				appliedModes = append(appliedModes, "+o")
@@ -810,18 +810,18 @@ func (c *Client) handleMode(parts []string) {
 			}
 			targetNick := args[argIndex]
 			argIndex++
-
+			
 			targetClient := c.server.GetClient(targetNick)
 			if targetClient == nil {
 				c.SendNumeric(ERR_NOSUCHNICK, targetNick+" :No such nick/channel")
 				continue
 			}
-
+			
 			if !targetClient.IsInChannel(target) {
 				c.SendNumeric(ERR_USERNOTINCHANNEL, fmt.Sprintf("%s %s :They aren't on that channel", targetNick, target))
 				continue
 			}
-
+			
 			channel.SetVoice(targetClient, adding)
 			if adding {
 				appliedModes = append(appliedModes, "+v")
@@ -836,18 +836,18 @@ func (c *Client) handleMode(parts []string) {
 			}
 			targetNick := args[argIndex]
 			argIndex++
-
+			
 			targetClient := c.server.GetClient(targetNick)
 			if targetClient == nil {
 				c.SendNumeric(ERR_NOSUCHNICK, targetNick+" :No such nick/channel")
 				continue
 			}
-
+			
 			if !targetClient.IsInChannel(target) {
 				c.SendNumeric(ERR_USERNOTINCHANNEL, fmt.Sprintf("%s %s :They aren't on that channel", targetNick, target))
 				continue
 			}
-
+			
 			channel.SetHalfop(targetClient, adding)
 			if adding {
 				appliedModes = append(appliedModes, "+h")
@@ -862,24 +862,24 @@ func (c *Client) handleMode(parts []string) {
 			}
 			targetNick := args[argIndex]
 			argIndex++
-
+			
 			// Only existing owners can grant/remove owner status
 			if !channel.IsOwner(c) && !c.IsOper() {
 				c.SendNumeric(ERR_CHANOPRIVSNEEDED, target+" :You're not channel owner")
 				continue
 			}
-
+			
 			targetClient := c.server.GetClient(targetNick)
 			if targetClient == nil {
 				c.SendNumeric(ERR_NOSUCHNICK, targetNick+" :No such nick/channel")
 				continue
 			}
-
+			
 			if !targetClient.IsInChannel(target) {
 				c.SendNumeric(ERR_USERNOTINCHANNEL, fmt.Sprintf("%s %s :They aren't on that channel", targetNick, target))
 				continue
 			}
-
+			
 			channel.SetOwner(targetClient, adding)
 			if adding {
 				appliedModes = append(appliedModes, "+q")
@@ -982,12 +982,12 @@ func (c *Client) handleMode(parts []string) {
 			}
 			mask := args[argIndex]
 			argIndex++
-
+			
 			// Check for extended ban types (e.g., ~q:nick!user@host for quiet)
 			if strings.HasPrefix(mask, "~") && len(mask) > 2 && mask[2] == ':' {
 				banType := mask[1]  // The character after ~
 				banMask := mask[3:] // The mask after ~x:
-
+				
 				switch banType {
 				case 'q': // Quiet ban
 					if adding {
@@ -995,7 +995,7 @@ func (c *Client) handleMode(parts []string) {
 						channel.quietList = append(channel.quietList, banMask)
 						appliedModes = append(appliedModes, "+b")
 						appliedArgs = append(appliedArgs, mask)
-
+						
 						// Send snomask to opers
 						if c.IsOper() {
 							c.server.sendSnomask('x', fmt.Sprintf("%s set quiet ban %s on %s", c.Nick(), banMask, target))
@@ -1007,7 +1007,7 @@ func (c *Client) handleMode(parts []string) {
 								channel.quietList = append(channel.quietList[:i], channel.quietList[i+1:]...)
 								appliedModes = append(appliedModes, "-b")
 								appliedArgs = append(appliedArgs, mask)
-
+								
 								// Send snomask to opers
 								if c.IsOper() {
 									c.server.sendSnomask('x', fmt.Sprintf("%s removed quiet ban %s on %s", c.Nick(), banMask, target))
@@ -1060,7 +1060,7 @@ func (c *Client) handleMode(parts []string) {
 		if len(appliedArgs) > 0 {
 			modeChangeMsg += " " + strings.Join(appliedArgs, " ")
 		}
-
+		
 		for _, client := range channel.GetClients() {
 			client.SendFrom(c.Prefix(), modeChangeMsg)
 		}
@@ -1110,7 +1110,7 @@ func (c *Client) handleTopic(parts []string) {
 	}
 
 	channel.SetTopic(newTopic, c.Nick())
-
+	
 	// Broadcast topic change to all channel members
 	for _, client := range channel.GetClients() {
 		client.SendFrom(c.Prefix(), fmt.Sprintf("TOPIC %s :%s", channelName, newTopic))
@@ -1139,7 +1139,7 @@ func (c *Client) handleAway(parts []string) {
 // handleList handles LIST command
 func (c *Client) handleList(parts []string) {
 	c.SendNumeric(RPL_LISTSTART, "Channel :Users  Name")
-
+	
 	for _, channel := range c.server.GetChannels() {
 		// For now, show all channels (TODO: Add proper mode checking for secret channels)
 		userCount := len(channel.GetClients())
@@ -1149,7 +1149,7 @@ func (c *Client) handleList(parts []string) {
 		}
 		c.SendNumeric(RPL_LIST, fmt.Sprintf("%s %d :%s", channel.Name(), userCount, topic))
 	}
-
+	
 	c.SendNumeric(RPL_LISTEND, ":End of /LIST")
 }
 
@@ -1290,11 +1290,11 @@ func (c *Client) handleKill(parts []string) {
 
 	// Send kill message to target and disconnect
 	target.SendMessage(fmt.Sprintf("ERROR :Killed (%s (%s))", c.Nick(), reason))
-
+	
 	// Broadcast to other operators
 	for _, client := range c.server.GetClients() {
 		if client.IsOper() && client != c {
-			client.SendMessage(fmt.Sprintf(":%s WALLOPS :%s killed %s (%s)",
+			client.SendMessage(fmt.Sprintf(":%s WALLOPS :%s killed %s (%s)", 
 				c.server.config.Server.Name, c.Nick(), target.Nick(), reason))
 		}
 	}
@@ -1330,23 +1330,23 @@ func (c *Client) handleOper(parts []string) {
 			// Check host mask (simplified - just check if it matches *@localhost for now)
 			if oper.Host == "*@localhost" || oper.Host == "*@*" {
 				c.SetOper(true)
-
+				
 				// Set operator user mode
 				c.SetMode('o', true)
 				c.SetMode('s', true) // Enable server notices by default
 				c.SetMode('w', true) // Enable wallops by default
-
+				
 				// Set default snomasks for new operators
 				c.SetSnomask('c', true) // Client connects/disconnects
 				c.SetSnomask('o', true) // Oper-up messages
 				c.SetSnomask('s', true) // Server messages
-
+				
 				c.SendNumeric(RPL_YOUREOPER, ":You are now an IRC operator")
 				c.SendNumeric(RPL_SNOMASK, fmt.Sprintf("%s :Server notice mask", c.GetSnomasks()))
-
+				
 				// Send mode change notification
 				c.SendMessage(fmt.Sprintf(":%s MODE %s :+osw", c.Nick(), c.Nick()))
-
+				
 				// Send snomask to other operators
 				c.sendSnomask('o', fmt.Sprintf("%s (%s@%s) is now an IRC operator", c.Nick(), c.User(), c.Host()))
 				return
@@ -1439,7 +1439,7 @@ func (c *Client) handleGlobalNotice(parts []string) {
 
 	// Send global notice to all users
 	for _, client := range c.server.GetClients() {
-		client.SendMessage(fmt.Sprintf(":%s NOTICE %s :[GLOBAL] %s",
+		client.SendMessage(fmt.Sprintf(":%s NOTICE %s :[GLOBAL] %s", 
 			c.server.config.Server.Name, client.Nick(), message))
 	}
 
@@ -1508,11 +1508,11 @@ func (c *Client) handleRehash(parts []string) {
 	if c.server != nil {
 		err := c.server.ReloadConfig()
 		if err != nil {
-			c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** REHASH failed: %s",
+			c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** REHASH failed: %s", 
 				c.server.config.Server.Name, c.Nick(), err.Error()))
 			c.sendSnomask('s', fmt.Sprintf("REHASH failed by %s: %s", c.Nick(), err.Error()))
 		} else {
-			c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Configuration reloaded successfully",
+			c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Configuration reloaded successfully", 
 				c.server.config.Server.Name, c.Nick()))
 			c.sendSnomask('s', fmt.Sprintf("Configuration reloaded by %s", c.Nick()))
 		}
@@ -1527,15 +1527,15 @@ func (c *Client) handleTrace(parts []string) {
 	}
 
 	// Show basic server info (simplified implementation)
-	c.SendMessage(fmt.Sprintf(":%s 200 %s Link %s %s %s",
-		c.server.config.Server.Name, c.Nick(),
+	c.SendMessage(fmt.Sprintf(":%s 200 %s Link %s %s %s", 
+		c.server.config.Server.Name, c.Nick(), 
 		c.server.config.Server.Version,
 		c.server.config.Server.Name,
 		"TechIRCd"))
-
+	
 	clientCount := len(c.server.GetClients())
-	c.SendMessage(fmt.Sprintf(":%s 262 %s %s :End of TRACE with %d clients",
-		c.server.config.Server.Name, c.Nick(),
+	c.SendMessage(fmt.Sprintf(":%s 262 %s %s :End of TRACE with %d clients", 
+		c.server.config.Server.Name, c.Nick(), 
 		c.server.config.Server.Name, clientCount))
 }
 
@@ -1547,7 +1547,7 @@ func (c *Client) handleSpy(parts []string) {
 	}
 
 	if len(parts) < 2 {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** SPY Usage: SPY <hide|watch|track|listen|cloak|ghost|shadow>",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** SPY Usage: SPY <hide|watch|track|listen|cloak|ghost|shadow>", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
@@ -1572,7 +1572,7 @@ func (c *Client) handleSpy(parts []string) {
 	case "status":
 		c.handleSpyStatus()
 	default:
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Unknown SPY command: %s",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Unknown SPY command: %s", 
 			c.server.config.Server.Name, c.Nick(), command))
 	}
 }
@@ -1581,12 +1581,12 @@ func (c *Client) handleSpy(parts []string) {
 func (c *Client) handleSpyHide(args []string) {
 	if len(args) == 0 || strings.ToLower(args[0]) == "on" {
 		c.SetMode('H', true) // Hidden mode
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** You are now HIDDEN from WHO, WHOIS, and NAMES",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** You are now HIDDEN from WHO, WHOIS, and NAMES", 
 			c.server.config.Server.Name, c.Nick()))
 		c.sendSnomask('d', fmt.Sprintf("Operator %s has entered STEALTH mode", c.Nick()))
 	} else if strings.ToLower(args[0]) == "off" {
 		c.SetMode('H', false)
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** You are now VISIBLE again",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** You are now VISIBLE again", 
 			c.server.config.Server.Name, c.Nick()))
 		c.sendSnomask('d', fmt.Sprintf("Operator %s has left STEALTH mode", c.Nick()))
 	}
@@ -1595,7 +1595,7 @@ func (c *Client) handleSpyHide(args []string) {
 // handleSpyWatch - monitor a specific user's activities
 func (c *Client) handleSpyWatch(args []string) {
 	if len(args) < 1 {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY WATCH <nickname|off>",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY WATCH <nickname|off>", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
@@ -1603,7 +1603,7 @@ func (c *Client) handleSpyWatch(args []string) {
 	target := args[0]
 	if strings.ToLower(target) == "off" {
 		// TODO: Remove from watch list
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Surveillance disabled",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Surveillance disabled", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
@@ -1615,16 +1615,16 @@ func (c *Client) handleSpyWatch(args []string) {
 	}
 
 	// TODO: Add to watch list
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Now watching %s (%s@%s)",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Now watching %s (%s@%s)", 
 		c.server.config.Server.Name, c.Nick(), target, targetClient.User(), targetClient.Host()))
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Target is in channels: %s",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Target is in channels: %s", 
 		c.server.config.Server.Name, c.Nick(), c.getChannelList(targetClient)))
 }
 
 // handleSpyTrack - get real-time location and movement tracking
 func (c *Client) handleSpyTrack(args []string) {
 	if len(args) < 1 {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY TRACK <nickname>",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY TRACK <nickname>", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
@@ -1637,17 +1637,17 @@ func (c *Client) handleSpyTrack(args []string) {
 	}
 
 	// Show detailed tracking info
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** TRACKING %s",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** TRACKING %s", 
 		c.server.config.Server.Name, c.Nick(), target))
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Location: %s@%s",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Location: %s@%s", 
 		c.server.config.Server.Name, c.Nick(), targetClient.User(), targetClient.Host()))
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Status: %s",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Status: %s", 
 		c.server.config.Server.Name, c.Nick(), c.getUserStatus(targetClient)))
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Channels: %s",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Channels: %s", 
 		c.server.config.Server.Name, c.Nick(), c.getChannelList(targetClient)))
-
+	
 	if targetClient.Away() != "" {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Away: %s",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Away: %s", 
 			c.server.config.Server.Name, c.Nick(), targetClient.Away()))
 	}
 }
@@ -1655,20 +1655,20 @@ func (c *Client) handleSpyTrack(args []string) {
 // handleSpyListen - tap into channel conversations invisibly
 func (c *Client) handleSpyListen(args []string) {
 	if len(args) < 1 {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY LISTEN <#channel|off>",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY LISTEN <#channel|off>", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
 
 	target := args[0]
 	if strings.ToLower(target) == "off" {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Wiretaps disabled",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Wiretaps disabled", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
 
 	if !isChannelName(target) {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Invalid channel name",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Invalid channel name", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
@@ -1680,51 +1680,51 @@ func (c *Client) handleSpyListen(args []string) {
 	}
 
 	// TODO: Add to wiretap list
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Now listening to %s (%d users)",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Now listening to %s (%d users)", 
 		c.server.config.Server.Name, c.Nick(), target, channel.UserCount()))
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Wiretap established - you will receive covert copies of all messages",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Wiretap established - you will receive covert copies of all messages", 
 		c.server.config.Server.Name, c.Nick()))
 }
 
 // handleSpyCloak - disguise your identity
 func (c *Client) handleSpyCloak(args []string) {
 	if len(args) < 1 {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY CLOAK <identity|off>",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY CLOAK <identity|off>", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
 
 	identity := args[0]
 	if strings.ToLower(identity) == "off" {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Identity cloak removed",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Identity cloak removed", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
 
 	// TODO: Implement identity cloaking
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Identity cloaked as: %s",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Identity cloaked as: %s", 
 		c.server.config.Server.Name, c.Nick(), identity))
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Your true identity is hidden from WHOIS and other commands",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Your true identity is hidden from WHOIS and other commands", 
 		c.server.config.Server.Name, c.Nick()))
 }
 
 // handleSpyGhost - become completely invisible in a channel
 func (c *Client) handleSpyGhost(args []string) {
 	if len(args) < 1 {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY GHOST <#channel|off>",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY GHOST <#channel|off>", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
 
 	target := args[0]
 	if strings.ToLower(target) == "off" {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Ghost mode disabled",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Ghost mode disabled", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
 
 	if !isChannelName(target) {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Invalid channel name",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Invalid channel name", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
@@ -1740,23 +1740,23 @@ func (c *Client) handleSpyGhost(args []string) {
 		channel.AddClient(c)
 	}
 
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** You are now a GHOST in %s",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** You are now a GHOST in %s", 
 		c.server.config.Server.Name, c.Nick(), target))
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** You can see everything but are invisible to users",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** You can see everything but are invisible to users", 
 		c.server.config.Server.Name, c.Nick()))
 }
 
 // handleSpyShadow - follow a user invisibly across channels
 func (c *Client) handleSpyShadow(args []string) {
 	if len(args) < 1 {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY SHADOW <nickname|off>",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Usage: SPY SHADOW <nickname|off>", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
 
 	target := args[0]
 	if strings.ToLower(target) == "off" {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Shadow mode disabled",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Shadow mode disabled", 
 			c.server.config.Server.Name, c.Nick()))
 		return
 	}
@@ -1767,31 +1767,31 @@ func (c *Client) handleSpyShadow(args []string) {
 		return
 	}
 
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Now shadowing %s",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** Now shadowing %s", 
 		c.server.config.Server.Name, c.Nick(), target))
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** You will automatically follow them to any channel they join",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** You will automatically follow them to any channel they join", 
 		c.server.config.Server.Name, c.Nick()))
 }
 
 // handleSpyStatus - show current spy operations
 func (c *Client) handleSpyStatus() {
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** === SPY STATUS ===",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** === SPY STATUS ===", 
 		c.server.config.Server.Name, c.Nick()))
-
+	
 	if c.HasMode('H') {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** STEALTH: Active (Hidden from WHO/WHOIS/NAMES)",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** STEALTH: Active (Hidden from WHO/WHOIS/NAMES)", 
 			c.server.config.Server.Name, c.Nick()))
 	} else {
-		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** STEALTH: Inactive",
+		c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** STEALTH: Inactive", 
 			c.server.config.Server.Name, c.Nick()))
 	}
 
 	// TODO: Show other active spy operations
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** WATCH: None active",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** WATCH: None active", 
 		c.server.config.Server.Name, c.Nick()))
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** WIRETAPS: None active",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** WIRETAPS: None active", 
 		c.server.config.Server.Name, c.Nick()))
-	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** SHADOWS: None active",
+	c.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** SHADOWS: None active", 
 		c.server.config.Server.Name, c.Nick()))
 }
 
@@ -1833,7 +1833,7 @@ func (c *Client) sendSnomask(snomask rune, message string) {
 
 	for _, client := range c.server.GetClients() {
 		if client.IsOper() && client.HasSnomask(snomask) {
-			client.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** %s",
+			client.SendMessage(fmt.Sprintf(":%s NOTICE %s :*** %s", 
 				c.server.config.Server.Name, client.Nick(), message))
 		}
 	}

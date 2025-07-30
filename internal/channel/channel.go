@@ -149,7 +149,7 @@ func (ch *Channel) IsQuieted(client *Client) bool {
 func (ch *Channel) isQuietedUnsafe(client *Client) bool {
 	nick := strings.ToLower(client.Nick())
 	hostmask := fmt.Sprintf("%s!%s@%s", client.Nick(), client.user, client.host)
-
+	
 	for _, quiet := range ch.quietList {
 		if matched, _ := filepath.Match(quiet, nick); matched {
 			return true
@@ -298,7 +298,7 @@ func (ch *Channel) CanSendMessage(client *Client) bool {
 		_, isOwner := ch.owners[nick]
 		_, isOp := ch.operators[nick]
 		_, isHalfop := ch.halfops[nick]
-
+		
 		if !isOwner && !isOp && !isHalfop {
 			return false
 		}
@@ -315,7 +315,7 @@ func (ch *Channel) CanSendMessage(client *Client) bool {
 	_, isOp := ch.operators[nick]
 	_, isHalfop := ch.halfops[nick]
 	_, hasVoice := ch.voices[nick]
-
+	
 	return isOwner || isOp || isHalfop || hasVoice
 }
 
