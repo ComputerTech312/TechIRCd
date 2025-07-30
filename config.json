@@ -1,0 +1,82 @@
+{
+  "server": {
+    "name": "TechIRCd",
+    "network": "TechNet",
+    "description": "A modern IRC server written in Go",
+    "version": "1.0.0",
+    "admin_info": "admin@example.com",
+    "listen": {
+      "host": "localhost",
+      "port": 6667,
+      "ssl_port": 6697,
+      "enable_ssl": false
+    },
+    "ssl": {
+      "cert_file": "server.crt",
+      "key_file": "server.key",
+      "require_ssl": false
+    }
+  },
+  "limits": {
+    "max_clients": 1000,
+    "max_channels": 100,
+    "max_channel_users": 500,
+    "max_nick_length": 30,
+    "max_channel_length": 50,
+    "max_topic_length": 307,
+    "max_kick_length": 307,
+    "max_away_length": 307,
+    "ping_timeout": 300,
+    "registration_timeout": 60,
+    "flood_lines": 10,
+    "flood_seconds": 60
+  },
+  "features": {
+    "enable_oper": true,
+    "enable_services": false,
+    "enable_modes": true,
+    "enable_ctcp": true,
+    "enable_dcc": false,
+    "case_mapping": "rfc1459"
+  },
+  "channels": {
+    "default_modes": "+nt",
+    "auto_join": [
+      "#general"
+    ],
+    "admin_channels": [
+      "#admin"
+    ],
+    "modes": {
+      "ban_list_size": 100,
+      "except_list_size": 100,
+      "invite_list_size": 100
+    }
+  },
+  "opers": [
+    {
+      "name": "admin",
+      "password": "your_secure_password_here",
+      "host": "*@localhost",
+      "class": "admin",
+      "flags": [
+        "global_kill",
+        "remote",
+        "connect",
+        "squit"
+      ]
+    }
+  ],
+  "motd": [
+    "Welcome to TechIRCd!",
+    "A modern IRC server written in Go",
+    "Enjoy your stay on TechNet!"
+  ],
+  "logging": {
+    "level": "info",
+    "file": "techircd.log",
+    "max_size": 100,
+    "max_backups": 3,
+    "max_age": 28
+  }
+}
