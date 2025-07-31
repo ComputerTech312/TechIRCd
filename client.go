@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"math/rand"
 )
 
 type Client struct {
@@ -28,6 +29,9 @@ type Client struct {
 	account    string // Services account name
 	connectTime time.Time // When the client connected
 	lastActivity time.Time // Last time client sent a message
+
+	// Unique client ID for server tracking
+	clientID string
 
 	// Flood protection
 	lastMessage  time.Time
@@ -59,7 +63,11 @@ func NewClient(conn net.Conn, server *Server) *Client {
 		isSSL = true
 	}
 
+	// Generate unique client ID
+	clientID := fmt.Sprintf("%s_%d_%d", host, time.Now().Unix(), rand.Intn(10000))
+
 	client := &Client{
+		clientID:       clientID,
 		conn:           conn,
 		host:           host,
 		server:         server,
@@ -101,6 +109,11 @@ func (c *Client) SendMessage(message string) {
 		// Log the error but don't panic - connection will be cleaned up
 		if c.server != nil {
 			log.Printf("Error sending message to %s: %v", c.Nick(), err)
+		}
+	} else {
+		// Log successful PONG sends for debugging
+		if strings.HasPrefix(message, "PONG") {
+			log.Printf("Successfully sent to client %s: %s", c.Nick(), message)
 		}
 	}
 }
@@ -710,8 +723,8 @@ func (c *Client) Handle() {
 	registrationActive := true
 
 	// Set up ping timeout mechanism
-	pingInterval := 30 * time.Second // Send ping every 30 seconds
-	pingTimeout := c.server.config.PingTimeoutDuration()
+	pingInterval := 90 * time.Second // Send ping every 90 seconds
+	// Note: We don't enforce ping timeouts, let clients handle their own LAG detection
 
 	pingTicker := time.NewTicker(pingInterval)
 	defer pingTicker.Stop()
@@ -726,26 +739,25 @@ func (c *Client) Handle() {
 		select {
 		case <-registrationTimer.C:
 			if registrationActive && !c.IsRegistered() {
+				log.Printf("Registration timeout for client from %s", c.Host())
 				c.SendMessage("ERROR :Registration timeout")
 				return
 			}
 		case <-pingTicker.C:
 			if c.IsRegistered() {
 				c.mu.RLock()
-				waitingForPong := c.waitingForPong
-				lastPong := c.lastPong
+				lastActivity := c.lastActivity
 				c.mu.RUnlock()
 
-				if waitingForPong && time.Since(lastPong) > pingTimeout {
-					c.SendMessage("ERROR :Ping timeout")
-					return
+				// Only send server ping if client has been inactive for a while
+				// Don't worry about ping timeouts - let the client handle LAG detection
+				timeSinceActivity := time.Since(lastActivity)
+				
+				if timeSinceActivity > 60*time.Second {
+					// Send a gentle server ping, but don't enforce timeouts
+					c.SendMessage(fmt.Sprintf("PING :%s", c.server.config.Server.Name))
+					log.Printf("Sent keepalive PING to %s (inactive for %v)", c.Nick(), timeSinceActivity)
 				}
-				// Send ping
-				c.SendMessage(fmt.Sprintf("PING :%s", c.server.config.Server.Name))
-
-				c.mu.Lock()
-				c.waitingForPong = true
-				c.mu.Unlock()
 			}
 		default:
 			// Reset read deadline for each message

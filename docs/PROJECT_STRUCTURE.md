@@ -10,6 +10,7 @@
 ## Proposed Enhanced Structure
 
 ```
+```
 TechIRCd/
 ├── .github/                    # GitHub-specific files
 │   ├── workflows/              # GitHub Actions CI/CD
@@ -25,9 +26,6 @@ TechIRCd/
 │   └── v1/
 │       └── openapi.yaml
 ├── build/                     # Build configurations
-│   ├── docker/
-│   │   ├── Dockerfile
-│   │   └── docker-compose.yml
 │   └── ci/
 │       └── scripts/
 ├── cmd/                       # Main applications
@@ -48,6 +46,7 @@ TechIRCd/
 │   │   └── service.yaml
 │   └── systemd/
 │       └── techircd.service
+```
 ├── docs/                     # Documentation
 │   ├── api/                  # API documentation
 │   ├── admin/                # Administrator guide
@@ -119,13 +118,11 @@ TechIRCd/
 ├── web/                      # Web interface (future)
 │   ├── static/
 │   └── templates/
-├── .dockerignore
 ├── .editorconfig
 ├── .golangci.yml             # Linter configuration
 ├── CHANGELOG.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── docker-compose.yml
 ├── go.mod
 ├── go.sum
 ├── LICENSE
@@ -143,10 +140,10 @@ TechIRCd/
 4. Add linting configuration
 
 ### Phase 2: Enhanced Features
-1. Add Docker support
-2. Create admin tools
-3. Add API endpoints
-4. Implement database layer
+1. Create admin tools
+2. Add API endpoints
+3. Implement database layer
+4. Add monitoring tools
 
 ### Phase 3: Production Ready
 1. Add monitoring

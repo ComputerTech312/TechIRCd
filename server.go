@@ -79,6 +79,7 @@ func (s *Server) Start() error {
 
 			client := NewClient(conn, s)
 			s.AddClient(client)
+			log.Printf("New client connected from %s", conn.RemoteAddr())
 			go client.Handle()
 		}
 	}
@@ -152,15 +153,15 @@ func (s *Server) AddClient(client *Client) {
 		return
 	}
 
-	s.clients[client.Host()] = client
+	s.clients[client.clientID] = client
 }
 
 func (s *Server) RemoveClient(client *Client) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.clients, client.Host())
+	delete(s.clients, client.clientID)
+	s.mu.Unlock()
 
-	// Send snomask notification for client disconnect
+	// Send snomask notification for client disconnect (after releasing the lock)
 	if client.IsRegistered() {
 		s.sendSnomask('c', fmt.Sprintf("Client disconnect: %s (%s@%s)",
 			client.Nick(), client.User(), client.Host()))
@@ -209,7 +210,19 @@ func (s *Server) GetClient(nick string) *Client {
 func (s *Server) GetClientByHost(host string) *Client {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.clients[host]
+	
+	for _, client := range s.clients {
+		if client.Host() == host {
+			return client
+		}
+	}
+	return nil
+}
+
+func (s *Server) GetClientByID(clientID string) *Client {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.clients[clientID]
 }
 
 func (s *Server) GetClients() map[string]*Client {
@@ -217,8 +230,8 @@ func (s *Server) GetClients() map[string]*Client {
 	defer s.mu.RUnlock()
 
 	clients := make(map[string]*Client)
-	for key, client := range s.clients {
-		clients[key] = client
+	for clientID, client := range s.clients {
+		clients[clientID] = client
 	}
 	return clients
 }

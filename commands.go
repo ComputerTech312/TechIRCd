@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -165,19 +166,14 @@ func (c *Client) checkRegistration() {
 
 // sendWelcome sends welcome messages to newly registered client
 func (c *Client) sendWelcome() {
-	fmt.Printf("DEBUG: sendWelcome called\n")
 	if c.server == nil {
-		fmt.Printf("DEBUG: sendWelcome - server is nil\n")
 		return
 	}
 	if c.server.config == nil {
-		fmt.Printf("DEBUG: sendWelcome - config is nil\n")
 		return
 	}
 
-	fmt.Printf("DEBUG: sendWelcome - about to send RPL_WELCOME\n")
 	c.SendNumeric(RPL_WELCOME, fmt.Sprintf("Welcome to %s, %s", c.server.config.Server.Network, c.Prefix()))
-	fmt.Printf("DEBUG: sendWelcome - sent RPL_WELCOME\n")
 	c.SendNumeric(RPL_YOURHOST, fmt.Sprintf("Your host is %s, running version %s", c.server.config.Server.Name, c.server.config.Server.Version))
 	c.SendNumeric(RPL_CREATED, "This server was created recently")
 	c.SendNumeric(RPL_MYINFO, fmt.Sprintf("%s %s o o", c.server.config.Server.Name, c.server.config.Server.Version))
@@ -196,8 +192,6 @@ func (c *Client) sendWelcome() {
 		c.server.sendSnomask('c', fmt.Sprintf("Client connect: %s (%s@%s)",
 			c.Nick(), c.User(), c.Host()))
 	}
-
-	fmt.Printf("DEBUG: sendWelcome completed\n")
 }
 
 // handlePing handles PING command
@@ -211,12 +205,28 @@ func (c *Client) handlePing(parts []string) {
 		token = token[1:]
 	}
 
-	serverName := "localhost"
-	if c.server != nil && c.server.config != nil {
-		serverName = c.server.config.Server.Name
+	// Log PING received for debugging
+	log.Printf("Received PING from client %s with token: %s", c.Nick(), token)
+	
+	// For LAG pings, try the exact format that HexChat expects
+	var pongMsg string
+	if strings.HasPrefix(token, "LAG") {
+		// HexChat LAG ping - respond exactly as HexChat expects
+		// Format: PONG servername LAGxxxxx
+		pongMsg = fmt.Sprintf("PONG %s %s", c.server.config.Server.Name, token)
+	} else {
+		// Server ping or other - use standard format with server name
+		pongMsg = fmt.Sprintf("PONG %s :%s", c.server.config.Server.Name, token)
 	}
-
-	c.SendMessage(fmt.Sprintf("PONG %s :%s", serverName, token))
+	
+	log.Printf("Sending PONG to client %s: %s", c.Nick(), pongMsg)
+	c.SendMessage(pongMsg)
+	
+	// Update ping tracking - treat any client PING as activity
+	c.mu.Lock()
+	c.lastPong = time.Now()
+	c.waitingForPong = false
+	c.mu.Unlock()
 }
 
 // handlePong handles PONG command
@@ -227,10 +237,15 @@ func (c *Client) handlePong(parts []string) {
 	c.lastPong = time.Now()
 	c.waitingForPong = false
 	c.mu.Unlock()
+	
+	// Log PONG receipt for debugging
+	log.Printf("Received PONG from client %s", c.Nick())
 }
 
 // handleJoin handles JOIN command
 func (c *Client) handleJoin(parts []string) {
+	log.Printf("JOIN command from %s (registered: %v): %v", c.Nick(), c.IsRegistered(), parts)
+	
 	if !c.IsRegistered() {
 		c.SendNumeric(ERR_NOTREGISTERED, ":You have not registered")
 		return
@@ -911,7 +926,7 @@ func (c *Client) handleMode(parts []string) {
 
 	// Check if user has operator privileges (required for most mode changes)
 	// God Mode users can bypass operator requirement
-	if !c.HasGodMode() && !channel.IsOwner(c) && !channel.IsOperator(c) && !channel.IsHalfop(c) && !c.IsOper() {
+	if !c.HasGodMode() && !channel.IsOwner(c) && !channel.IsOperator(c) && !channel.IsHalfop(c) {
 		c.SendNumeric(ERR_CHANOPRIVSNEEDED, target+" :You're not channel operator")
 		return
 	}
@@ -1016,8 +1031,8 @@ func (c *Client) handleMode(parts []string) {
 			targetNick := args[argIndex]
 			argIndex++
 
-			// Only existing owners can grant/remove owner status
-			if !channel.IsOwner(c) && !c.IsOper() {
+			// Only existing owners can grant/remove owner status, or God Mode users
+			if !channel.IsOwner(c) && !c.HasGodMode() {
 				c.SendNumeric(ERR_CHANOPRIVSNEEDED, target+" :You're not channel owner")
 				continue
 			}

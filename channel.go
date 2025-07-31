@@ -85,9 +85,8 @@ func (ch *Channel) AddClient(client *Client) {
 	ch.clients[strings.ToLower(client.Nick())] = client
 	client.AddChannel(ch)
 
-	// First user becomes owner and operator
+	// First user becomes operator (not owner - owner is for special designation)
 	if len(ch.clients) == 1 {
-		ch.owners[strings.ToLower(client.Nick())] = client
 		ch.operators[strings.ToLower(client.Nick())] = client
 	}
 }
